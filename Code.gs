@@ -34,6 +34,11 @@ function doPost(e) {
   try {
     const d = JSON.parse(e.postData.contents);
     if (d.key !== SECRET) return out_({ ok: false, error: 'Clave incorrecta' });
+    if ((d.del || []).length) {
+      const s = sh_('Actividades'), n = s.getLastRow();
+      if (n > 1) { const ids = s.getRange(2, 1, n - 1, 1).getValues().map(r => String(r[0]));
+        for (let i = ids.length - 1; i >= 0; i--) if (d.del.indexOf(ids[i]) >= 0) s.deleteRow(i + 2); }
+    }
     upsert_(sh_('Actividades'), (d.acts || []).map(a => AK.map(k => a[k] == null ? '' : a[k])), 0);
     upsert_(sh_('Rutinas'), (d.routines || []).map(r => [r.id, r.name, r.start + '-' + (r.end || ''), (r.days || []).join(','), r.from, r.to, r.status]), 0);
     upsert_(sh_('Historial de cambios'), (d.hist || []).map(h => [h.id, h.at, h.oldT, h.newT, h.oldS, h.newS, h.reason || '', h.hid]), 7);

@@ -37,7 +37,7 @@ h3{margin:0 0 8px;font-size:15px;color:var(--p4)}details{color:var(--mu)}summary
 <script>
 const PI='2026-10-29',PF='2026-12-31',K='plannerV1',$=s=>document.querySelector(s);
 let S;try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
-S=S||{acts:[],hist:[],routines:[],url:'',key:'',err:''};
+S=S||{acts:[],hist:[],routines:[],url:'',key:'',err:''};S.del=S.del||[];
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){alert('No se pudo guardar en el dispositivo: '+e)}};
 const lima=()=>new Date(Date.now()-5*36e5).toISOString().slice(0,10);
 const nowL=()=>new Date(Date.now()-5*36e5).toISOString().slice(0,19)+'-05:00';
@@ -87,9 +87,12 @@ function db(){const base=S.acts.filter(x=>!dc||(x.cat||'Sin categoría')===dc),[
 function st(){$('#v').innerHTML=`<div class=card><h3>Google Sheets</h3><label>URL de la aplicación web (Apps Script)<input id=su value="${esc(S.url)}"></label><label>Clave secreta<input id=sk value="${esc(S.key)}"></label><button onclick=ss()>Guardar y sincronizar</button><p class=note>${S.err?'Último error: '+esc(S.err):''}</p></div><div class=card><button class=sec onclick=bk()>Descargar copia JSON</button><p class=note>${S.acts.length} actividades guardadas en este dispositivo.</p></div>`}
 async function ss(){S.url=$('#su').value.trim();S.key=$('#sk').value.trim();[S.acts,S.hist,S.routines].forEach(l=>l.forEach(x=>x.d=1));save();await sync();await pull();st()}
 function bk(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='planner-respaldo-'+lima()+'.json';a.click()}
+function rm(id){if(!confirm('¿Eliminar esta actividad por completo? No se podrá recuperar.'))return;
+ const a=get(id);S.hist.push({hid:uid(),id:a.id,at:nowL(),oldT:a.date+' '+a.start,newT:'',oldS:a.status,newS:'eliminada',reason:'Eliminada por el usuario: '+a.name,d:1});
+ S.acts=S.acts.filter(x=>x.id!==id);S.del.push(id);save();clearTimeout(tmr);tmr=setTimeout(sync,1500);$('#m').close();render()}
 function dup(f,id){return S.acts.some(a=>a.id!==id&&a.date===f.date&&a.start===f.start&&a.name.toLowerCase()===f.name.toLowerCase()&&a.status!=='cancelada')}
 function openF(id){const a=id?get(id):null,v=a||{date:cur,start:'',end:'',name:'',cat:'',notes:'',type:'planificada'};
- $('#mf').innerHTML=`<h3>${a?'Editar':'Añadir'} actividad</h3><label>Fecha<input id=fd type=date min=${PI} max=${PF} value=${v.date}></label><div class=g2><label>Inicio<input id=fs type=time value="${v.start}"></label><label>Fin (opcional)<input id=fe type=time value="${v.end||''}"></label></div><label>Actividad<input id=fn value="${esc(v.name)}"></label><label>Categoría (opcional)<input id=fc list=cl value="${esc(v.cat)}"><datalist id=cl>${cats().map(c=>`<option>${esc(c)}`).join('')}</datalist></label><label>Observaciones (opcional)<textarea id=fo>${esc(v.notes)}</textarea></label><label>Tipo<select id=fy><option value=planificada>Planificada<option value=imprevista ${v.type==='imprevista'?'selected':''}>Imprevista</select></label>${a?'<label>Motivo del cambio (opcional)<input id=fr></label>':'<label>Repetir hasta el 31 dic<select id=fp><option value=n>No<option value=d>Todos los días<option value=w>Lunes a viernes<option value=s>Cada semana (mismo día)</select></label>'}<div class=g2><button onclick="sv('${id||''}')">Guardar</button><button class=sec onclick="$('#m').close()">Cerrar</button></div>${a?`<button class=dng onclick="cn('${id}')">Cancelar actividad</button>`:''}`;$('#m').showModal()}
+ $('#mf').innerHTML=`<h3>${a?'Editar':'Añadir'} actividad</h3><label>Fecha<input id=fd type=date min=${PI} max=${PF} value=${v.date}></label><div class=g2><label>Inicio<input id=fs type=time value="${v.start}"></label><label>Fin (opcional)<input id=fe type=time value="${v.end||''}"></label></div><label>Actividad<input id=fn value="${esc(v.name)}"></label><label>Categoría (opcional)<input id=fc list=cl value="${esc(v.cat)}"><datalist id=cl>${cats().map(c=>`<option>${esc(c)}`).join('')}</datalist></label><label>Observaciones (opcional)<textarea id=fo>${esc(v.notes)}</textarea></label><label>Tipo<select id=fy><option value=planificada>Planificada<option value=imprevista ${v.type==='imprevista'?'selected':''}>Imprevista</select></label>${a?'<label>Motivo del cambio (opcional)<input id=fr></label>':'<label>Repetir hasta el 31 dic<select id=fp><option value=n>No<option value=d>Todos los días<option value=w>Lunes a viernes<option value=s>Cada semana (mismo día)</select></label>'}<div class=g2><button onclick="sv('${id||''}')">Guardar</button><button class=sec onclick="$('#m').close()">Cerrar</button></div>${a?`<button class=dng onclick="cn('${id}')">Cancelar actividad (queda marcada)</button><button class=dng onclick="rm('${id}')">Eliminar actividad definitivamente</button>`:''}`;$('#m').showModal()}
 function sv(id){const d=$('#fd').value,s=$('#fs').value,n=$('#fn').value.trim(),e=$('#fe').value;
  if(!d||!s||!n)return alert('Faltan fecha, hora de inicio o nombre.');if(d<PI||d>PF)return alert('Fecha fuera del periodo 29 oct – 31 dic 2026.');if(e&&e<s)return alert('La hora final es anterior al inicio.');
  const f={date:d,start:s,end:e,name:n,cat:$('#fc').value.trim(),notes:$('#fo').value.trim(),type:$('#fy').value};
@@ -99,17 +102,17 @@ function sv(id){const d=$('#fd').value,s=$('#fs').value,n=$('#fn').value.trim(),
   if(p!=='n'){const r={id:uid(),name:n,start:s,end:e,days:p==='d'?[0,1,2,3,4,5,6]:p==='w'?[1,2,3,4,5]:[dow(d)],from:d,to:PF,status:'activa',d:1,v:1};S.routines.push(r)}
   ds.forEach(x=>{const nf={...f,date:x};if(dup(nf))return;const a={id:uid(),...nf,status:'pendiente',created:nowL(),doneAt:'',resched:0,orig:''};S.acts.push(a);touch(a)});cur=clamp(d)}
  save();$('#m').close();render()}
-const pend=()=>S.acts.filter(x=>x.d).length+S.hist.filter(x=>x.d).length+S.routines.filter(x=>x.d).length;
+const pend=()=>S.acts.filter(x=>x.d).length+S.hist.filter(x=>x.d).length+S.routines.filter(x=>x.d).length+S.del.length;
 function chip(t){const n=pend(),c=$('#sync');c.textContent=t||(!S.url?'Sin Google Sheets':(S.err||n)?`⏳ ${n} pendiente(s) · reintentar`:'✓ Sincronizado')}
 async function sync(){if(!S.url||busy||!navigator.onLine)return chip();
- const A=S.acts.filter(x=>x.d).map(x=>({...x})),H=S.hist.filter(x=>x.d).map(x=>({...x})),R=S.routines.filter(x=>x.d).map(x=>({...x}));
- if(!A.length&&!H.length&&!R.length)return chip();busy=1;chip('Sincronizando…');
- try{const r=await fetch(S.url,{method:'POST',body:JSON.stringify({key:S.key,acts:A,hist:H,routines:R})}),j=await r.json();if(!j.ok)throw j.error||'Error';
-  A.forEach(s=>{const x=get(s.id);if(x&&x.v===s.v)x.d=0});H.forEach(s=>{const x=S.hist.find(h=>h.hid===s.hid);if(x)x.d=0});R.forEach(s=>{const x=S.routines.find(h=>h.id===s.id);if(x&&x.v===s.v)x.d=0});S.err='';save()}
+ const A=S.acts.filter(x=>x.d).map(x=>({...x})),H=S.hist.filter(x=>x.d).map(x=>({...x})),R=S.routines.filter(x=>x.d).map(x=>({...x})),D=[...S.del];
+ if(!A.length&&!H.length&&!R.length&&!D.length)return chip();busy=1;chip('Sincronizando…');
+ try{const r=await fetch(S.url,{method:'POST',body:JSON.stringify({key:S.key,acts:A,hist:H,routines:R,del:D})}),j=await r.json();if(!j.ok)throw j.error||'Error';
+  A.forEach(s=>{const x=get(s.id);if(x&&x.v===s.v)x.d=0});H.forEach(s=>{const x=S.hist.find(h=>h.hid===s.hid);if(x)x.d=0});S.del=S.del.filter(i=>!D.includes(i));R.forEach(s=>{const x=S.routines.find(h=>h.id===s.id);if(x&&x.v===s.v)x.d=0});S.err='';save()}
  catch(e){S.err=String(e);save()}busy=0;chip()}
 async function pull(){if(!S.url||!navigator.onLine)return;
  try{const r=await fetch(S.url+'?key='+encodeURIComponent(S.key)),j=await r.json();if(!j.ok)throw j.error||'Error';
-  j.acts.forEach(q=>{const i=S.acts.findIndex(x=>x.id===q.id);if(i>=0&&S.acts[i].d)return;const n={...q,resched:+q.resched||0,v:0,d:0};if(i>=0)S.acts[i]=n;else S.acts.push(n)});
+  j.acts.forEach(q=>{if(S.del.includes(q.id))return;const i=S.acts.findIndex(x=>x.id===q.id);if(i>=0&&S.acts[i].d)return;const n={...q,resched:+q.resched||0,v:0,d:0};if(i>=0)S.acts[i]=n;else S.acts.push(n)});
   j.hist.forEach(h=>{if(!S.hist.some(x=>x.hid===h.hid))S.hist.push({...h,d:0})});
   j.routines.forEach(q=>{if(!S.routines.some(x=>x.id===q.id))S.routines.push({...q,d:0,v:0})});S.err='';save();render()}
  catch(e){S.err=String(e);chip()}}
