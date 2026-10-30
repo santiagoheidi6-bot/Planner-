@@ -82,7 +82,7 @@ const col=a=>a.color||'#8b5cf6',HP=88,mins=t=>{const[h,m]=t.split(':').map(Numbe
 function layout(L){const it=L.map(a=>({a,s:mins(a.start),e:Math.max(mins(a.end||a.start),mins(a.start)+30)}));let cl=[],cu=null,ce=-1;
  it.forEach(x=>{if(x.s>=ce){cu=[];cl.push(cu);ce=x.e}else ce=Math.max(ce,x.e);cu.push(x)});
  cl.forEach(c=>{const en=[];c.forEach(x=>{let i=en.findIndex(e=>e<=x.s);if(i<0){i=en.length;en.push(0)}en[i]=x.e;x.c=i});c.forEach(x=>x.n=en.length)});return it}
-function tl(){const L=day(cur),m=calc(L),past=cur<lima(),it=layout(L),h0=Math.min(6,...it.map(x=>Math.floor(x.s/60))),h1=Math.min(24,Math.max(22,...it.map(x=>Math.ceil(x.e/60))));
+function tl(){const L=day(cur),m=calc(L),past=cur<lima(),it=layout(L),h0=0,h1=24;
  const names=f=>L.filter(f).map(a=>esc(a.name)).join(', ')||'—',ws=wk(cur);
  const strip=[0,1,2,3,4,5,6].map(i=>{const d=addD(ws,i),ok=d>=PI&&d<=PF;return`<button class="wd ${d===cur?'on':''}" ${ok?'':'disabled'} onclick="cur='${d}';render()">${'lun mar mié jue vie sáb dom'.split(' ')[i]}<b>${+d.slice(8)}</b><i class="sd ${dayState(d)}"></i></button>`}).join('');
  let g='';for(let h=h0;h<h1;h++)g+=`<div class=hr style="top:${(h-h0)*HP}px"><span>${ft(String(h).padStart(2,'0')+':00').replace(':00','')}</span></div>`;
@@ -167,7 +167,8 @@ function rgl(id){if(!confirm('¿Eliminar este sueño y sus abonos? No se puede r
 function openA(id){$('#mf').innerHTML=`<h3>Nuevo abono</h3><label>Monto (S/)<input id=am type=number min=0.01 step=any></label><label>Fecha<input id=ad type=date value="${lima()}"></label><label>Nota (opcional)<input id=an></label><div class=g2><button onclick="svA('${id}')">Guardar</button><button class=sec onclick="$('#m').close()">Cerrar</button></div>`;$('#m').showModal()}
 function svA(id){const a=+$('#am').value,d=$('#ad').value;if(!(a>0)||!d)return alert('Escribe un monto y una fecha.');const g=S.goals.find(x=>x.id===id);g.adds=g.adds||[];g.adds.push({id:uid(),date:d,amt:a,note:$('#an').value.trim()});save();$('#m').close();render()}
 function da(g,a){if(!confirm('¿Borrar este abono?'))return;const x=S.goals.find(y=>y.id===g);x.adds=x.adds.filter(y=>y.id!==a);save();render()}
-function render(){$('#ttl').innerHTML=view==='sg'?'<b>Mis sueños 💜</b>':`<b>${lbl(cur)}</b>`;document.querySelectorAll('nav [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));({tl,db,st,sg})[view]();chip()}
+let lastSc='';function scrollTl(){if(lastSc===cur)return;lastSc=cur;const el=$('.now')||$('.bk')||document.querySelectorAll('.hr')[6];if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),60)}
+function render(){$('#ttl').innerHTML=view==='sg'?'<b>Mis sueños 💜</b>':`<b>${lbl(cur)}</b>`;document.querySelectorAll('nav [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===view));({tl,db,st,sg})[view]();if(view==='tl')scrollTl();chip()}
 $('#prev').onclick=()=>{cur=clamp(addD(cur,-1));view='tl';render()};$('#next').onclick=()=>{cur=clamp(addD(cur,1));view='tl';render()};
 $('#today').onclick=()=>{cur=clamp(lima());view='tl';render()};$('#add').onclick=()=>view==='sg'?openG():openF();$('#sync').onclick=sync;
 document.querySelectorAll('nav [data-v]').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
